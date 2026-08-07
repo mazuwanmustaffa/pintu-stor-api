@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
   const deviceId = 'a349e338f1fd700cc8u0xo';
   
   // URL Rasmi Singapore Data Center
-  const baseUrl = 'https://openapi.tuyaapis.com';
+  const baseUrl = 'https://openapi.tuyasg.com';
 
   try {
     // 1. Dapatkan Access Token
