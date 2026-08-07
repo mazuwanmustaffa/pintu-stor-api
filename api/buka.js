@@ -45,7 +45,14 @@ module.exports = async (req, res) => {
 
     // 2. Buka Pintu
     const cmdPath = `/v1.0/devices/${deviceId}/commands`;
-    const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
+    const bodyObj = {
+  commands: [
+    {
+      code: "switch_1",
+      value: true
+    }
+  ]
+};
     const bodyStr = JSON.stringify(bodyObj);
     
     const t2 = Date.now().toString();
