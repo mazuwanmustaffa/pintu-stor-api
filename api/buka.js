@@ -15,13 +15,18 @@ module.exports = async (req, res) => {
   const baseUrl = 'https://openapi.tuyacn.com';
 
   try {
-    // 1. Dapatkan Token dari Tuya
+    // 1. Ambil Token
     const t = Date.now().toString();
-    const tokenPath = '/v1.0/token?grant_type=1';
-    const strToSign = clientId + t + 'GET\n' + crypto.createHash('sha256').update('').digest('hex') + '\n\n' + tokenPath;
-    const sign = crypto.createHmac('sha256', secret).update(strToSign).digest('hex').toUpperCase();
+    const tokenUrl = '/v1.0/token?grant_type=1';
+    
+    // Format Sign Tuya Token: client_id + t + "GET\n" + content_sha256 + "\n\n" + url
+    const contentHash = crypto.createHash('sha256').update('').digest('hex');
+    const stringToSign = `GET\n${contentHash}\n\n${tokenUrl}`;
+    const signStr = clientId + t + stringToSign;
+    const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
 
-    const tokenRes = await fetch(baseUrl + tokenPath, {
+    const tokenRes = await fetch(baseUrl + tokenUrl, {
+      method: 'GET',
       headers: {
         'client_id': clientId,
         'sign': sign,
@@ -39,16 +44,17 @@ module.exports = async (req, res) => {
     const accessToken = tokenData.result.access_token;
 
     // 2. Hantar Perintah Buka Pintu
-    const cmdPath = `/v1.0/devices/${deviceId}/commands`;
-    const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
-    const bodyStr = JSON.stringify(bodyObj);
-    const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+    const cmdUrl = `/v1.0/devices/${deviceId}/commands`;
+    const bodyData = { commands: [{ code: 'switch_1', value: true }] };
+    const bodyStr = JSON.stringify(bodyData);
     
     const t2 = Date.now().toString();
-    const strToSign2 = clientId + accessToken + t2 + 'POST\n' + bodyHash + '\n\n' + cmdPath;
-    const sign2 = crypto.createHmac('sha256', secret).update(strToSign2).digest('hex').toUpperCase();
+    const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+    const stringToSign2 = `POST\n${bodyHash}\n\n${cmdUrl}`;
+    const signStr2 = clientId + accessToken + t2 + stringToSign2;
+    const sign2 = crypto.createHmac('sha256', secret).update(signStr2).digest('hex').toUpperCase();
 
-    const cmdRes = await fetch(baseUrl + cmdPath, {
+    const cmdRes = await fetch(baseUrl + cmdUrl, {
       method: 'POST',
       headers: {
         'client_id': clientId,
