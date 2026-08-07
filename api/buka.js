@@ -1,7 +1,6 @@
 const crypto = require('crypto');
 
 module.exports = async (req, res) => {
-  // Tetapan CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,15 +15,15 @@ module.exports = async (req, res) => {
   const baseUrl = 'https://openapi.tuyacn.com';
 
   try {
-    // 1. Dapatkan Access Token dari Tuya
+    // 1. Dapatkan Access Token
     const t = Date.now().toString();
     const tokenUrl = '/v1.0/token?grant_type=1';
     
-    // Hash SHA256 untuk body kosong (GET request)
-    const emptyBodyHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-    const stringToSign = `GET\n${emptyBodyHash}\n\n${tokenUrl}`;
-    const signStr = clientId + t + stringToSign;
-    const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
+    // Formula Sign Token Tuya yang tepat: HMAC-SHA256(clientId + t + "GET\n" + body_hash + "\n\n" + url, secret)
+    const contentHash = crypto.createHash('sha256').update('').digest('hex');
+    const stringToSign = `GET\n${contentHash}\n\n${tokenUrl}`;
+    const signPayload = clientId + t + stringToSign;
+    const sign = crypto.createHmac('sha256', secret).update(signPayload).digest('hex').toUpperCase();
 
     const tokenRes = await fetch(baseUrl + tokenUrl, {
       method: 'GET',
@@ -44,7 +43,7 @@ module.exports = async (req, res) => {
 
     const accessToken = tokenData.result.access_token;
 
-    // 2. Hantar Perintah Buka Pintu (POST Command)
+    // 2. Hantar Perintah Buka Pintu
     const cmdUrl = `/v1.0/devices/${deviceId}/commands`;
     const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
     const bodyStr = JSON.stringify(bodyObj);
@@ -52,8 +51,8 @@ module.exports = async (req, res) => {
     const t2 = Date.now().toString();
     const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
     const stringToSign2 = `POST\n${bodyHash}\n\n${cmdUrl}`;
-    const signStr2 = clientId + accessToken + t2 + stringToSign2;
-    const sign2 = crypto.createHmac('sha256', secret).update(signStr2).digest('hex').toUpperCase();
+    const signPayload2 = clientId + accessToken + t2 + stringToSign2;
+    const sign2 = crypto.createHmac('sha256', secret).update(signPayload2).digest('hex').toUpperCase();
 
     const cmdRes = await fetch(baseUrl + cmdUrl, {
       method: 'POST',
