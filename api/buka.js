@@ -2,7 +2,8 @@ const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 
 const tuya = new TuyaContext({
   baseUrl: 'https://openapi.tuyacn.com',
-  accessId: '5apwu48xt5pexrxh5sf',
+  accessKey: '5apwu48xt5pexrxh5sf', // Masukkan kedua-duanya untuk elak header undefined
+  accessId: '5apwu48xt5pexrxh5sf',  
   secretKey: 'eeb83dbad3624ec19b74a72b989d6f8f',
 });
 
