@@ -2,12 +2,11 @@ const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 
 const tuya = new TuyaContext({
   baseUrl: 'https://openapi.tuyacn.com',
-  accessKey: '5apwu48xt5pexrxh5sf',
+  accessId: '5apwu48xt5pexrxh5sf',
   secretKey: 'eeb83dbad3624ec19b74a72b989d6f8f',
 });
 
 module.exports = async (req, res) => {
-  // Tetapan CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -19,7 +18,6 @@ module.exports = async (req, res) => {
   try {
     const deviceId = 'a349e338f1fd700cc8u0xo';
 
-    // Panggil fungsi request dari SDK rasmi Tuya
     const response = await tuya.request({
       path: `/v1.0/devices/${deviceId}/commands`,
       method: 'POST',
