@@ -13,21 +13,20 @@ module.exports = async (req, res) => {
   const secret = 'eeb83dbad3624ec19b74a72b989d6f8f';
   const deviceId = 'a349e338f1fd700cc8u0xo';
   
-  // Endpoint Singapore Data Center
-  const baseUrl = 'https://openapi.tuyaus.com';
+  // Domain Sebenar dari API Explorer Tuya Anda
+  const baseUrl = 'https://openapi-sg.iotbing.com';
 
   try {
-    // 1. Pengiraan Token (Spesifikasi Tuya V2.0 Standard)
+    // 1. Dapatkan Access Token
     const t = Date.now().toString();
-    const tokenPath = '/v1.0/token?grant_type=1';
+    const tokenUrl = '/v1.0/token?grant_type=1';
     
-    // Hash SHA256 untuk body kosong
-    const emptyBodyHash = crypto.createHash('sha256').update('').digest('hex');
-    const stringToSign = `GET\n${emptyBodyHash}\n\n${tokenPath}`;
+    const contentHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    const stringToSign = `GET\n${contentHash}\n\n${tokenUrl}`;
     const signStr = clientId + t + stringToSign;
     const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
 
-    const tokenRes = await fetch(`${baseUrl}${tokenPath}`, {
+    const tokenRes = await fetch(baseUrl + tokenUrl, {
       method: 'GET',
       headers: {
         'client_id': clientId,
@@ -46,17 +45,17 @@ module.exports = async (req, res) => {
     const accessToken = tokenData.result.access_token;
 
     // 2. Hantar Perintah Buka Pintu
-    const cmdPath = `/v1.0/devices/${deviceId}/commands`;
+    const cmdUrl = `/v1.0/devices/${deviceId}/commands`;
     const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
     const bodyStr = JSON.stringify(bodyObj);
     
     const t2 = Date.now().toString();
     const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
-    const stringToSign2 = `POST\n${bodyHash}\n\n${cmdPath}`;
+    const stringToSign2 = `POST\n${bodyHash}\n\n${cmdUrl}`;
     const signStr2 = clientId + accessToken + t2 + stringToSign2;
     const sign2 = crypto.createHmac('sha256', secret).update(signStr2).digest('hex').toUpperCase();
 
-    const cmdRes = await fetch(`${baseUrl}${cmdPath}`, {
+    const cmdRes = await fetch(baseUrl + cmdUrl, {
       method: 'POST',
       headers: {
         'client_id': clientId,
