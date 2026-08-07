@@ -15,14 +15,17 @@ module.exports = async (req, res) => {
   const baseUrl = 'https://openapi-sg.iotbing.com';
 
   try {
-    // 1. Dapatkan Access Token (Format Signature Klasik Tuya SG)
+    // 1. Ambil Token
     const t = Date.now().toString();
+    const tokenPath = '/v1.0/token?grant_type=1';
     
-    // Formula Signature Klasik: HMAC-SHA256(clientId + t, secret)
-    const signStr = clientId + t;
-    const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
+    // Formula Sign Token Tuya v2: HMAC-SHA256(clientId + t + "GET\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n\n" + path, secret)
+    const emptyBodyHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    const stringToSign = `GET\n${emptyBodyHash}\n\n${tokenPath}`;
+    const signPayload = clientId + t + stringToSign;
+    const sign = crypto.createHmac('sha256', secret).update(signPayload).digest('hex').toUpperCase();
 
-    const tokenRes = await fetch(`${baseUrl}/v1.0/token?grant_type=1`, {
+    const tokenRes = await fetch(`${baseUrl}${tokenPath}`, {
       method: 'GET',
       headers: {
         'client_id': clientId,
@@ -40,7 +43,7 @@ module.exports = async (req, res) => {
 
     const accessToken = tokenData.result.access_token;
 
-    // 2. Hantar Perintah Buka Pintu
+    // 2. Buka Pintu
     const cmdPath = `/v1.0/devices/${deviceId}/commands`;
     const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
     const bodyStr = JSON.stringify(bodyObj);
@@ -48,10 +51,10 @@ module.exports = async (req, res) => {
     const t2 = Date.now().toString();
     const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
     const stringToSign2 = `POST\n${bodyHash}\n\n${cmdPath}`;
-    const signStr2 = clientId + accessToken + t2 + stringToSign2;
-    const sign2 = crypto.createHmac('sha256', secret).update(signStr2).digest('hex').toUpperCase();
+    const signPayload2 = clientId + accessToken + t2 + stringToSign2;
+    const sign2 = crypto.createHmac('sha256', secret).update(signPayload2).digest('hex').toUpperCase();
 
-    const cmdRes = await fetch(baseUrl + cmdPath, {
+    const cmdRes = await fetch(`${baseUrl}${cmdPath}`, {
       method: 'POST',
       headers: {
         'client_id': clientId,
@@ -65,7 +68,7 @@ module.exports = async (req, res) => {
     });
 
     const cmdData = await cmdRes.json();
-    return res.status(200).json({ status: "Berjaya Buka Pintu", responseTuya: cmdData });
+    return res.status(200).json({ status: "Berjaya Buka Pintu", result: cmdData });
 
   } catch (err) {
     return res.status(500).json({ status: "Ralat Server", message: err.message });
