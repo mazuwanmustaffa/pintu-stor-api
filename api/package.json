@@ -1,7 +1,0 @@
-{
-  "name": "pintu-stor-tuya",
-  "version": "1.0.0",
-  "dependencies": {
-    "@tuya/tuya-connector-nodejs": "^1.0.7"
-  }
-}
