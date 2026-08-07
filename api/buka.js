@@ -1,7 +1,7 @@
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 
 const tuya = new TuyaContext({
-  baseUrl: 'https://openapi.tuyacn.com', // Asia-Pacific Data Center
+  baseUrl: 'https://openapi.tuyaus.com', // Asia-Pacific Data Center
   accessKey: '5apwu48xt55pexrxh5sf',
   secretKey: 'eeb83dbad3624ec19b74a72b989d6f8f',
 });
