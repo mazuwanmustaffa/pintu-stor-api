@@ -15,16 +15,14 @@ module.exports = async (req, res) => {
   const baseUrl = 'https://openapi-sg.iotbing.com';
 
   try {
-    // 1. Dapatkan Token (Format V2.0)
+    // 1. Dapatkan Access Token (Format Signature Klasik Tuya SG)
     const t = Date.now().toString();
-    const tokenPath = '/v1.0/token?grant_type=1';
     
-    const contentHash = crypto.createHash('sha256').update('').digest('hex');
-    const stringToSign = `GET\n${contentHash}\n\n${tokenPath}`;
-    const signStr = clientId + t + stringToSign;
+    // Formula Signature Klasik: HMAC-SHA256(clientId + t, secret)
+    const signStr = clientId + t;
     const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
 
-    const tokenRes = await fetch(baseUrl + tokenPath, {
+    const tokenRes = await fetch(`${baseUrl}/v1.0/token?grant_type=1`, {
       method: 'GET',
       headers: {
         'client_id': clientId,
@@ -42,12 +40,9 @@ module.exports = async (req, res) => {
 
     const accessToken = tokenData.result.access_token;
 
-    // 2. Hantar Perintah Buka Pintu Menggunakan Endpoint V2.0 (Dari API Explorer Anda)
-    const cmdPath = `/v2.0/cloud/thing/${deviceId}/shadow/actions`;
-    const bodyObj = {
-      action: "switch_1",
-      value: true
-    };
+    // 2. Hantar Perintah Buka Pintu
+    const cmdPath = `/v1.0/devices/${deviceId}/commands`;
+    const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
     const bodyStr = JSON.stringify(bodyObj);
     
     const t2 = Date.now().toString();
