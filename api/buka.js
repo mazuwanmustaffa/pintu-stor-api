@@ -1,10 +1,4 @@
-const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
-
-const tuya = new TuyaContext({
-  baseUrl: 'https://openapi.tuyacn.com', // URL standard bagi Singapore Data Center
-  accessKey: '5apwu48xt5pexrxh5sf',
-  secretKey: 'eeb83dbad3624ec19b74a72b989d6f8f',
-});
+const crypto = require('crypto');
 
 module.exports = async (req, res) => {
   // Tetapan CORS
@@ -16,25 +10,68 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  try {
-    const deviceId = 'a349e338f1fd700cc8u0xo';
+  const clientId = '5apwu48xt5pexrxh5sf';
+  const secret = 'eeb83dbad3624ec19b74a72b989d6f8f';
+  const deviceId = 'a349e338f1fd700cc8u0xo';
+  const baseUrl = 'https://openapi.tuyacn.com';
 
-    // Menggunakan fungsi request rasmi Tuya
-    const response = await tuya.request({
-      path: `/v1.0/devices/${deviceId}/commands`,
-      method: 'POST',
-      body: {
-        commands: [
-          {
-            code: 'switch_1',
-            value: true,
-          },
-        ],
-      },
+  try {
+    // 1. Dapatkan Access Token dari Tuya
+    const t = Date.now().toString();
+    const tokenUrl = '/v1.0/token?grant_type=1';
+    
+    // Hash SHA256 untuk body kosong (GET request)
+    const emptyBodyHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    const stringToSign = `GET\n${emptyBodyHash}\n\n${tokenUrl}`;
+    const signStr = clientId + t + stringToSign;
+    const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
+
+    const tokenRes = await fetch(baseUrl + tokenUrl, {
+      method: 'GET',
+      headers: {
+        'client_id': clientId,
+        'sign': sign,
+        't': t,
+        'sign_method': 'HMAC-SHA256'
+      }
     });
 
-    return res.status(200).json(response);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+    const tokenData = await tokenRes.json();
+
+    if (!tokenData.success) {
+      return res.status(400).json({ error: 'Token Request Failed', details: tokenData });
+    }
+
+    const accessToken = tokenData.result.access_token;
+
+    // 2. Hantar Perintah Buka Pintu (POST Command)
+    const cmdUrl = `/v1.0/devices/${deviceId}/commands`;
+    const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
+    const bodyStr = JSON.stringify(bodyObj);
+    
+    const t2 = Date.now().toString();
+    const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+    const stringToSign2 = `POST\n${bodyHash}\n\n${cmdUrl}`;
+    const signStr2 = clientId + accessToken + t2 + stringToSign2;
+    const sign2 = crypto.createHmac('sha256', secret).update(signStr2).digest('hex').toUpperCase();
+
+    const cmdRes = await fetch(baseUrl + cmdUrl, {
+      method: 'POST',
+      headers: {
+        'client_id': clientId,
+        'access_token': accessToken,
+        'sign': sign2,
+        't': t2,
+        'sign_method': 'HMAC-SHA256',
+        'Content-Type': 'application/json'
+      },
+      body: bodyStr
+    });
+
+    const cmdData = await cmdRes.json();
+    return res.status(200).json(cmdData);
+
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 };
