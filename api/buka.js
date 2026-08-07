@@ -13,8 +13,8 @@ module.exports = async (req, res) => {
   const secret = 'eeb83dbad3624ec19b74a72b989d6f8f';
   const deviceId = 'a349e338f1fd700cc8u0xo';
   
-  // Base URL rasmi Tuya OpenAPI
-  const baseUrl = 'https://openapi.tuyaus.com';
+  // Endpoint Rasmi Singapore (Asia Data Center)
+  const baseUrl = 'https://openapi.tuyasg.com';
 
   try {
     // 1. Dapatkan Access Token
