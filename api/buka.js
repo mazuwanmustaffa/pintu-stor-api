@@ -13,65 +13,74 @@ module.exports = async (req, res) => {
   const secret = 'eeb83dbad3624ec19b74a72b989d6f8f';
   const deviceId = 'a349e338f1fd700cc8u0xo';
   
-  // URL Rasmi Singapore Data Center
-  const baseUrl = 'https://openapi.tuyasg.com';
+  // Senarai Endpoint Tuya (Singapore / China / Western America)
+  const endpoints = [
+    'https://openapi.tuyacn.com',
+    'https://openapi.tuyaweus.com',
+    'https://openapi.tuyasg.com'
+  ];
 
-  try {
-    // 1. Dapatkan Access Token
-    const t = Date.now().toString();
-    const tokenUrl = '/v1.0/token?grant_type=1';
-    
-    const contentHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-    const stringToSign = `GET\n${contentHash}\n\n${tokenUrl}`;
-    const signStr = clientId + t + stringToSign;
-    const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
+  let lastError = null;
 
-    const tokenRes = await fetch(baseUrl + tokenUrl, {
-      method: 'GET',
-      headers: {
-        'client_id': clientId,
-        'sign': sign,
-        't': t,
-        'sign_method': 'HMAC-SHA256'
+  for (const baseUrl of endpoints) {
+    try {
+      // 1. Dapatkan Access Token
+      const t = Date.now().toString();
+      const tokenUrl = '/v1.0/token?grant_type=1';
+      
+      const contentHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+      const stringToSign = `GET\n${contentHash}\n\n${tokenUrl}`;
+      const signStr = clientId + t + stringToSign;
+      const sign = crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
+
+      const tokenRes = await fetch(baseUrl + tokenUrl, {
+        method: 'GET',
+        headers: {
+          'client_id': clientId,
+          'sign': sign,
+          't': t,
+          'sign_method': 'HMAC-SHA256'
+        }
+      });
+
+      const tokenData = await tokenRes.json();
+
+      // Jika berjaya dapat token, teruskan ke perintah buka pintu
+      if (tokenData.success) {
+        const accessToken = tokenData.result.access_token;
+
+        const cmdUrl = `/v1.0/devices/${deviceId}/commands`;
+        const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
+        const bodyStr = JSON.stringify(bodyObj);
+        
+        const t2 = Date.now().toString();
+        const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+        const stringToSign2 = `POST\n${bodyHash}\n\n${cmdUrl}`;
+        const signStr2 = clientId + accessToken + t2 + stringToSign2;
+        const sign2 = crypto.createHmac('sha256', secret).update(signStr2).digest('hex').toUpperCase();
+
+        const cmdRes = await fetch(baseUrl + cmdUrl, {
+          method: 'POST',
+          headers: {
+            'client_id': clientId,
+            'access_token': accessToken,
+            'sign': sign2,
+            't': t2,
+            'sign_method': 'HMAC-SHA256',
+            'Content-Type': 'application/json'
+          },
+          body: bodyStr
+        });
+
+        const cmdData = await cmdRes.json();
+        return res.status(200).json({ success: true, endpointUsed: baseUrl, result: cmdData });
+      } else {
+        lastError = { endpoint: baseUrl, response: tokenData };
       }
-    });
-
-    const tokenData = await tokenRes.json();
-
-    if (!tokenData.success) {
-      return res.status(400).json({ error: 'Token Request Failed', details: tokenData });
+    } catch (err) {
+      lastError = { endpoint: baseUrl, error: err.message };
     }
-
-    const accessToken = tokenData.result.access_token;
-
-    // 2. Hantar Perintah Buka Pintu
-    const cmdUrl = `/v1.0/devices/${deviceId}/commands`;
-    const bodyObj = { commands: [{ code: 'switch_1', value: true }] };
-    const bodyStr = JSON.stringify(bodyObj);
-    
-    const t2 = Date.now().toString();
-    const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
-    const stringToSign2 = `POST\n${bodyHash}\n\n${cmdUrl}`;
-    const signStr2 = clientId + accessToken + t2 + stringToSign2;
-    const sign2 = crypto.createHmac('sha256', secret).update(signStr2).digest('hex').toUpperCase();
-
-    const cmdRes = await fetch(baseUrl + cmdUrl, {
-      method: 'POST',
-      headers: {
-        'client_id': clientId,
-        'access_token': accessToken,
-        'sign': sign2,
-        't': t2,
-        'sign_method': 'HMAC-SHA256',
-        'Content-Type': 'application/json'
-      },
-      body: bodyStr
-    });
-
-    const cmdData = await cmdRes.json();
-    return res.status(200).json(cmdData);
-
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
   }
+
+  return res.status(400).json({ error: 'All endpoints failed', details: lastError });
 };
