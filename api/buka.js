@@ -13,8 +13,8 @@ module.exports = async (req, res) => {
   const secret = 'eeb83dbad3624ec19b74a72b989d6f8f';
   const deviceId = 'a349e338f1fd700cc8u0xo';
   
-  // Domain Rasmi Tuya bagi Singapore Data Center
-  const baseUrl = 'https://openapi.tuyasg.com';
+  // Base URL rasmi Tuya OpenAPI
+  const baseUrl = 'https://openapi.tuyaus.com';
 
   try {
     // 1. Dapatkan Access Token
@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
     const tokenData = await tokenRes.json();
 
     if (!tokenData.success) {
-      return res.status(400).json({ error: 'Token Request Failed', details: tokenData });
+      return res.status(400).json({ status: "Gagal Token", responseTuya: tokenData });
     }
 
     const accessToken = tokenData.result.access_token;
@@ -69,9 +69,9 @@ module.exports = async (req, res) => {
     });
 
     const cmdData = await cmdRes.json();
-    return res.status(200).json(cmdData);
+    return res.status(200).json({ status: "Berjaya", responseTuya: cmdData });
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ status: "Ralat Server", message: err.message });
   }
 };
