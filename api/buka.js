@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
         commands: [
           {
             code: 'switch_1', // Jika peranti anda jenis 1-channel, cuba 'switch' jika 'switch_1' gagal
-            value: true
+            value: false
           }
         ]
       }
