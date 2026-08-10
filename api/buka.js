@@ -4,16 +4,22 @@ const https = require('https');
 const CLIENT_ID = '5apwu48xt5spexaxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
-const TUYA_HOST = 'openapi.tuyasg.com'; // Endpoint Singapore yang sah
+
+// Senarai Endpoint Rasmi Tuya (Auto Fallback)
+const ENDPOINTS = [
+  'openapi.tuyacn.com', // Asia / Singapore Primary
+  'openapi.tuyaus.com'  // Western America (Universal Fallback)
+];
 
 function calcSign(clientId, secret, t, accessToken = '', stringToSign = '') {
   const str = clientId + accessToken + t + stringToSign;
   return crypto.createHmac('sha256', secret).update(str).digest('hex').toUpperCase();
 }
 
-function makeRequest(options, postData = null) {
+function makeRequest(host, options, postData = null) {
   return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
+    const reqOptions = { ...options, hostname: host };
+    const req = https.request(reqOptions, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
@@ -28,6 +34,23 @@ function makeRequest(options, postData = null) {
     if (postData) req.write(postData);
     req.end();
   });
+}
+
+// Fungsi utama panggil Tuya dengan cubaan pelbagai host
+async function callTuyaApi(options, postData = null) {
+  let lastError;
+  for (const host of ENDPOINTS) {
+    try {
+      const res = await makeRequest(host, options, postData);
+      // Jika jawapan bukan ralat DNS/Network, kembalikan keputusan
+      if (res && res.code !== 2009) {
+        return res;
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("Gagal berhubung dengan semua pelayan Tuya.");
 }
 
 module.exports = async (req, res) => {
@@ -46,7 +69,6 @@ module.exports = async (req, res) => {
     const tokenSign = calcSign(CLIENT_ID, CLIENT_SECRET, t, '', stringToSignToken);
 
     const tokenOptions = {
-      hostname: TUYA_HOST,
       path: tokenPath,
       method: 'GET',
       headers: {
@@ -57,7 +79,7 @@ module.exports = async (req, res) => {
       }
     };
 
-    const tokenData = await makeRequest(tokenOptions);
+    const tokenData = await callTuyaApi(tokenOptions);
 
     if (!tokenData || !tokenData.success) {
       return res.status(500).json({ status: 'Ralat Token Tuya', details: tokenData });
@@ -77,7 +99,6 @@ module.exports = async (req, res) => {
     const cmdSign = calcSign(CLIENT_ID, CLIENT_SECRET, tCmd, accessToken, stringToSignCmd);
 
     const cmdOptions = {
-      hostname: TUYA_HOST,
       path: cmdPath,
       method: 'POST',
       headers: {
@@ -90,7 +111,7 @@ module.exports = async (req, res) => {
       }
     };
 
-    const cmdData = await makeRequest(cmdOptions, payload);
+    const cmdData = await callTuyaApi(cmdOptions, payload);
 
     if (cmdData && cmdData.success) {
       return res.status(200).json({
