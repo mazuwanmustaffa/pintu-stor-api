@@ -4,7 +4,7 @@ const https = require('https');
 const CLIENT_ID = '5apwu48xt5spexaxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
-const TUYA_HOST = 'openapi.tuyaasia.com'; // Singapore / Asia Data Center
+const TUYA_HOST = 'openapi.tuyain.com'; // ✅ Endpoint Singapore / India Data Center Rasmi
 
 function calcSign(clientId, secret, t, accessToken = '', stringToSign = '') {
   const str = clientId + accessToken + t + stringToSign;
