@@ -5,7 +5,7 @@ const https = require('https');
 const CLIENT_ID = '5apwu48xt5spexaxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
-const TUYA_HOST = 'openapi.tuyasg.com'; // Endpoint Singapore Tuya yang tepat
+const TUYA_HOST = 'openapi-sg.iotbing.com'; // Endpoint rasmi Singapore Data Center
 
 function calcSign(clientId, secret, t, accessToken = '', nonce = '', stringToSign = '') {
   const str = clientId + accessToken + t + nonce + stringToSign;
@@ -41,7 +41,7 @@ module.exports = async (req, res) => {
   try {
     const t = Date.now().toString();
 
-    // 1. Dapatkan Access Token
+    // 1. Dapatkan Access Token dari Tuya API
     const tokenPath = '/v1.0/token?grant_type=1';
     const stringToSignToken = `GET\n${crypto.createHash('sha256').update('').digest('hex')}\n\n${tokenPath}`;
     const tokenSign = calcSign(CLIENT_ID, CLIENT_SECRET, t, '', '', stringToSignToken);
@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
 
     const accessToken = tokenData.result.access_token;
 
-    // 2. Hantar Arahan ON ke Device
+    // 2. Hantar Arahan ON ke Peranti EM Lock
     const cmdPath = `/v1.0/devices/${DEVICE_ID}/commands`;
     const payload = JSON.stringify({
       commands: [{ code: 'switch_1', value: true }]
@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
     if (cmdData && cmdData.success) {
       return res.status(200).json({
         status: 'Berjaya',
-        message: 'EM Lock Tuya fizikal berjaya dipicu!'
+        message: 'EM Lock Tuya fizikal berjaya dipicu secara direct!'
       });
     } else {
       return res.status(500).json({ status: 'Ralat Arahan Tuya', details: cmdData });
