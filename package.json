@@ -1,7 +1,5 @@
 {
   "name": "pintu-stor-api",
   "version": "1.0.0",
-  "dependencies": {
-    "@tuya/tuya-connector-nodejs": "^1.0.8"
-  }
+  "private": true
 }
