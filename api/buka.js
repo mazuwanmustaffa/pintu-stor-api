@@ -1,15 +1,34 @@
 const crypto = require('crypto');
+const https = require('https');
 
-// 🔑 Tetapan Tuya Developer Console
+// 🔑 Tetapan Tuya Developer
 const CLIENT_ID = '5apwu48xt5spexaxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
-const TUYA_BASE_URL = 'https://openapi.singapore.tuya.com'; // Singapore Data Center
+const TUYA_HOST = 'openapi.singapore.tuya.com';
 
-// Fungsi Jana Signature Tuya
 function calcSign(clientId, secret, t, accessToken = '', nonce = '', stringToSign = '') {
   const str = clientId + accessToken + t + nonce + stringToSign;
   return crypto.createHmac('sha256', secret).update(str).digest('hex').toUpperCase();
+}
+
+function makeRequest(options, postData = null) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (e) {
+          resolve(body);
+        }
+      });
+    });
+    req.on('error', reject);
+    if (postData) req.write(postData);
+    req.end();
+  });
 }
 
 module.exports = async (req, res) => {
@@ -22,32 +41,31 @@ module.exports = async (req, res) => {
   try {
     const t = Date.now().toString();
 
-    // -------------------------------------------------------------
-    // LANGKAH 1: Dapatkan Access Token dari Tuya API
-    // -------------------------------------------------------------
+    // 1. Dapatkan Access Token
     const tokenPath = '/v1.0/token?grant_type=1';
     const stringToSignToken = `GET\n${crypto.createHash('sha256').update('').digest('hex')}\n\n${tokenPath}`;
     const tokenSign = calcSign(CLIENT_ID, CLIENT_SECRET, t, '', '', stringToSignToken);
 
-    const tokenRes = await fetch(`${TUYA_BASE_URL}${tokenPath}`, {
+    const tokenOptions = {
+      hostname: TUYA_HOST,
+      path: tokenPath,
+      method: 'GET',
       headers: {
         'client_id': CLIENT_ID,
         'sign': tokenSign,
         't': t,
         'sign_method': 'HMAC-SHA256'
       }
-    });
+    };
 
-    const tokenData = await tokenRes.json();
-    if (!tokenData.success) {
+    const tokenData = await makeRequest(tokenOptions);
+    if (!tokenData || !tokenData.success) {
       return res.status(500).json({ status: 'Ralat Token Tuya', details: tokenData });
     }
 
     const accessToken = tokenData.result.access_token;
 
-    // -------------------------------------------------------------
-    // LANGKAH 2: Hantar Arahan Turn On (buka_pintu) ke Peranti
-    // -------------------------------------------------------------
+    // 2. Hantar Arahan ON ke Device
     const cmdPath = `/v1.0/devices/${DEVICE_ID}/commands`;
     const payload = JSON.stringify({
       commands: [{ code: 'switch_1', value: true }]
@@ -58,7 +76,9 @@ module.exports = async (req, res) => {
     const tCmd = Date.now().toString();
     const cmdSign = calcSign(CLIENT_ID, CLIENT_SECRET, tCmd, accessToken, '', stringToSignCmd);
 
-    const cmdRes = await fetch(`${TUYA_BASE_URL}${cmdPath}`, {
+    const cmdOptions = {
+      hostname: TUYA_HOST,
+      path: cmdPath,
       method: 'POST',
       headers: {
         'client_id': CLIENT_ID,
@@ -67,16 +87,15 @@ module.exports = async (req, res) => {
         't': tCmd,
         'sign_method': 'HMAC-SHA256',
         'Content-Type': 'application/json'
-      },
-      body: payload
-    });
+      }
+    };
 
-    const cmdData = await cmdRes.json();
+    const cmdData = await makeRequest(cmdOptions, payload);
 
-    if (cmdData.success) {
+    if (cmdData && cmdData.success) {
       return res.status(200).json({
         status: 'Berjaya',
-        message: 'EM Lock Tuya fizikal berjaya dipicu langsung melalui Tuya Direct API!'
+        message: 'EM Lock Tuya fizikal berjaya dipicu!'
       });
     } else {
       return res.status(500).json({ status: 'Ralat Arahan Tuya', details: cmdData });
