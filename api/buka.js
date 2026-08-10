@@ -8,7 +8,7 @@ const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
 
 // Host domain Tuya (Singapore / Western America Data Center)
-const TUYA_HOST = 'openapi.tuyaus.com'; 
+const TUYA_HOST = 'openapi.tuyasgp.com'; 
 
 // Helper function untuk buat HTTP Request guna native HTTPS
 function tuyaRequest(path, method, headers, bodyData = null) {
