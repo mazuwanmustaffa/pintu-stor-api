@@ -1,32 +1,43 @@
+// Contoh Kod Backend Vercel: api/buka.js
+const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
+
+const context = new TuyaContext({
+  baseUrl: 'https://openapi.tuyasg.com',
+  accessKey: '5apwu48xt5spexrxh5sf',
+  secretKey: 'eeb83dbad3624ec19b74a72b989d6f8f',
+});
+
 module.exports = async (req, res) => {
-  // Tetapan CORS Headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  // Pautan Webhook Pipedream anda
-  const PIPEDREAM_URL = "https://eod6k1beo5cem02.m.pipedream.net";
-
   try {
-    const response = await fetch(PIPEDREAM_URL, { method: 'POST' });
-    
-    if (response.ok) {
-      return res.status(200).json({ 
-        status: 'Berjaya', 
-        message: 'EM Lock Fizikal Terbuka!' 
+    const deviceId = 'a349e338f1fd700cc8u0xo';
+
+    // 1. Hantar arahan BUKA kunci (switch_1 = true)
+    const response = await context.request({
+      path: `/v1.0/devices/${deviceId}/commands`,
+      method: 'POST',
+      body: {
+        commands: [
+          {
+            code: 'switch_1', // Jika peranti anda jenis 1-channel, cuba 'switch' jika 'switch_1' gagal
+            value: true
+          }
+        ]
+      }
+    });
+
+    // 2. Automatik MATIKAN semula relay selepas 5 saat (EM Lock kunci semula)
+    setTimeout(async () => {
+      await context.request({
+        path: `/v1.0/devices/${deviceId}/commands`,
+        method: 'POST',
+        body: {
+            commands: [{ code: 'switch_1', value: false }]
+        }
       });
-    }
-    
-    return res.status(500).json({ 
-      status: 'Ralat', 
-      message: 'Gagal menghubungi pelayan Pipedream' 
-    });
-  } catch (err) {
-    return res.status(500).json({ 
-      status: 'Ralat Pelayan', 
-      error: err.message 
-    });
+    }, 5000);
+
+    return res.status(200).json({ status: 'Berjaya', data: response.result });
+  } catch (error) {
+        return res.status(500).json({ status: 'Gagal', error: error.message });
   }
 };
