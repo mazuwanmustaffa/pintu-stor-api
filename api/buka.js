@@ -1,4 +1,3 @@
-// Contoh Kod Backend Vercel: api/buka.js
 const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 
 const context = new TuyaContext({
@@ -11,33 +10,22 @@ module.exports = async (req, res) => {
   try {
     const deviceId = 'a349e338f1fd700cc8u0xo';
 
-    // 1. Hantar arahan BUKA kunci (switch_1 = true)
+    // Arahan khas untuk lepaskan EM Lock pada Smart WIFI Controller
     const response = await context.request({
       path: `/v1.0/devices/${deviceId}/commands`,
       method: 'POST',
       body: {
         commands: [
           {
-            code: 'switch_1', // Jika peranti anda jenis 1-channel, cuba 'switch' jika 'switch_1' gagal
-            value: false
+            code: 'remote_no_pd_setkey',
+            value: "1" // Menghantar Isyarat Buka Remote
           }
         ]
       }
     });
 
-    // 2. Automatik MATIKAN semula relay selepas 5 saat (EM Lock kunci semula)
-    setTimeout(async () => {
-      await context.request({
-        path: `/v1.0/devices/${deviceId}/commands`,
-        method: 'POST',
-        body: {
-            commands: [{ code: 'switch_1', value: false }]
-        }
-      });
-    }, 5000);
-
-    return res.status(200).json({ status: 'Berjaya', data: response.result });
+    return res.status(200).json({ status: 'Berjaya', result: response.result });
   } catch (error) {
-        return res.status(500).json({ status: 'Gagal', error: error.message });
+    return res.status(500).json({ status: 'Gagal', error: error.message });
   }
 };
