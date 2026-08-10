@@ -1,12 +1,13 @@
 // api/buka.js
 const crypto = require('crypto');
 
+// 🔑 MAKLUAMAT TUYA API ANDA
 const CLIENT_ID = '5apwu48xt55pexrxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
-const TUYA_BASE_URL = 'https://openapi.tuyaus.com'; // Singapore Region
+const TUYA_BASE_URL = 'https://openapi.tuyaus.com'; // Singapore Data Center
 
-// Fungsi Jana Signature HMAC-SHA256 Tuya
+// Fungsi Jana Signature HMAC-SHA256 Keselamatan Tuya
 function calcSign(clientId, secret, timestamp, accessToken = '', url = '', body = '') {
   const contentHash = crypto.createHash('sha256').update(body).digest('hex');
   const stringToSign = ['POST', contentHash, '', url].join('\n');
@@ -15,7 +16,7 @@ function calcSign(clientId, secret, timestamp, accessToken = '', url = '', body 
 }
 
 module.exports = async (req, res) => {
-  // 1. Wajib Set Header CORS
+  // 1. Wajib Set Header CORS (Membenarkan Panggilan dari App Anda)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -27,7 +28,7 @@ module.exports = async (req, res) => {
   try {
     const t = Date.now().toString();
 
-    // 2. Dapatkan Token dari Tuya
+    // 2. Dapatkan Access Token dari Tuya Cloud
     const tokenUrl = '/v1.0/token?grant_type=1';
     const tokenSign = calcSign(CLIENT_ID, CLIENT_SECRET, t, '', tokenUrl, '');
     
@@ -43,12 +44,12 @@ module.exports = async (req, res) => {
     
     const tokenData = await tokenRes.json();
     if (!tokenData.success) {
-      return res.status(500).json({ success: false, msg: 'Gagal Token', detail: tokenData });
+      return res.status(500).json({ success: false, msg: 'Gagal Dapatkan Token Tuya', detail: tokenData });
     }
 
     const accessToken = tokenData.result.access_token;
 
-    // 3. Hantar Arahan Unlock (Buka Pintu)
+    // 3. Hantar Arahan UNLOCK (Buka Pintu)
     const cmdUrl = `/v1.0/devices/${DEVICE_ID}/commands`;
     const bodyStr = JSON.stringify({ commands: [{ code: 'remote_unlock', value: true }] });
     const cmdSign = calcSign(CLIENT_ID, CLIENT_SECRET, t, accessToken, cmdUrl, bodyStr);
@@ -68,7 +69,7 @@ module.exports = async (req, res) => {
 
     const cmdData = await cmdRes.json();
 
-    // 4. Autolock Backup (Kunci semula selepas 5 saat)
+    // 4. AUTOLOCK BACKUP (Mengunci semula pintu secara automatik selepas 5 Saat)
     setTimeout(async () => {
       const lockBody = JSON.stringify({ commands: [{ code: 'remote_unlock', value: false }] });
       const lockSign = calcSign(CLIENT_ID, CLIENT_SECRET, Date.now().toString(), accessToken, cmdUrl, lockBody);
@@ -84,7 +85,8 @@ module.exports = async (req, res) => {
         },
         body: lockBody
       });
-    }, 5000);
+      console.log("[AUTOLOCK]: Pintu dikunci semula secara automatik.");
+    }, 5000); // 5000ms = 5 Saat
 
     return res.status(200).json({ status: "Berjaya", success: true, tuya: cmdData });
 
