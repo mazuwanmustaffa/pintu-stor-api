@@ -1,46 +1,15 @@
 // api/buka.js
-const crypto = require('crypto');
-const https = require('https');
+const { TuyaContext } = require('@tuya/tuya-connector-nodejs');
 
-const CLIENT_ID = '5apwu48xt55pexrxh5sf';
-const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
-const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
-
-// DOMAIN RASMI ASIA / SINGAPORE DATA CENTER
-const TUYA_HOST = 'openapi.tuyacn.com'; 
-
-function tuyaFetch(path, method, headers, bodyData = '') {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: TUYA_HOST,
-      port: 443,
-      path: path,
-      method: method,
-      headers: headers
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); } catch (e) { resolve(data); }
-      });
-    });
-
-    req.on('error', (e) => reject(e));
-    if (bodyData) req.write(bodyData);
-    req.end();
-  });
-}
-
-function buildSign(clientId, secret, t, accessToken = '', path = '', bodyStr = '', method = 'GET') {
-  const contentHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
-  const stringToSign = [method, contentHash, '', path].join('\n');
-  const signStr = clientId + accessToken + t + stringToSign;
-  return crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
-}
+// 🔑 KONFIGURASI SDK RASMI TUYA
+const tuya = new TuyaContext({
+  baseUrl: 'https://openapi.tuyaus.com', // Endpoint Wajib Singapore IP
+  accessKey: '5apwu48xt55pexrxh5sf',
+  secretKey: 'eeb83dbad3624ec19b74a72b989d6f8f',
+});
 
 module.exports = async (req, res) => {
+  // Set Header CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -48,62 +17,36 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const t = Date.now().toString();
+    const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
 
-    // 1. Dapatkan Access Token
-    const tokenPath = '/v1.0/token?grant_type=1';
-    const tokenSign = buildSign(CLIENT_ID, CLIENT_SECRET, t, '', tokenPath, '', 'GET');
-
-    const tokenRes = await tuyaFetch(tokenPath, 'GET', {
-      'client_id': CLIENT_ID,
-      'sign': tokenSign,
-      't': t,
-      'sign_method': 'HMAC-SHA256'
+    // 1. Arahan Buka Pintu (Unlock)
+    const unlockRes = await tuya.request({
+      method: 'POST',
+      path: `/v1.0/devices/${DEVICE_ID}/commands`,
+      body: {
+        commands: [{ code: 'remote_unlock', value: true }]
+      }
     });
 
-    if (!tokenRes || !tokenRes.success) {
-      return res.status(500).json({ status: 'Gagal', msg: 'Gagal Token', detail: tokenRes });
-    }
-
-    const accessToken = tokenRes.result.access_token;
-
-    // 2. Arahan Unlock (Buka Pintu)
-    const cmdPath = `/v1.0/devices/${DEVICE_ID}/commands`;
-    const bodyStr = JSON.stringify({ commands: [{ code: 'remote_unlock', value: true }] });
-    const cmdSign = buildSign(CLIENT_ID, CLIENT_SECRET, t, accessToken, cmdPath, bodyStr, 'POST');
-
-    const cmdRes = await tuyaFetch(cmdPath, 'POST', {
-      'client_id': CLIENT_ID,
-      'access_token': accessToken,
-      'sign': cmdSign,
-      't': t,
-      'sign_method': 'HMAC-SHA256',
-      'Content-Type': 'application/json'
-    }, bodyStr);
-
-    // 3. Autolock (Kunci semula secara automatik selepas 5 saat)
+    // 2. Autolock (Kunci semula secara automatik selepas 5 Saat)
     setTimeout(async () => {
       try {
-        const lockT = Date.now().toString();
-        const lockBodyStr = JSON.stringify({ commands: [{ code: 'remote_unlock', value: false }] });
-        const lockSign = buildSign(CLIENT_ID, CLIENT_SECRET, lockT, accessToken, cmdPath, lockBodyStr, 'POST');
-
-        await tuyaFetch(cmdPath, 'POST', {
-          'client_id': CLIENT_ID,
-          'access_token': accessToken,
-          'sign': lockSign,
-          't': lockT,
-          'sign_method': 'HMAC-SHA256',
-          'Content-Type': 'application/json'
-        }, lockBodyStr);
-      } catch (e) {
-        console.error(e);
+        await tuya.request({
+          method: 'POST',
+          path: `/v1.0/devices/${DEVICE_ID}/commands`,
+          body: {
+            commands: [{ code: 'remote_unlock', value: false }]
+          }
+        });
+        console.log('[AUTOLOCK]: Pintu dikunci semula.');
+      } catch (err) {
+        console.error('[AUTOLOCK ERROR]:', err);
       }
     }, 5000);
 
-    return res.status(200).json({ status: 'Berjaya', success: true, tuya: cmdRes });
+    return res.status(200).json({ status: 'Berjaya', success: true, tuya: unlockRes });
 
-  } catch (err) {
-    return res.status(500).json({ status: 'Gagal', error: err.message || err });
+  } catch (error) {
+    return res.status(500).json({ status: 'Gagal', success: false, error: error.message || error });
   }
 };
