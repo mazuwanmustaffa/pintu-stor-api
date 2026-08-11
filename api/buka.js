@@ -6,8 +6,8 @@ const CLIENT_ID = '5apwu48xt55pexrxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
 
-// GUNA PELAYAN ASIA / CHINA REGION (Paling serasi untuk akaun percuma di Malaysia)
-const TUYA_HOST = 'openapi.tuyacn.com';
+// ENDPOINT SINGAPORE DATA CENTER
+const TUYA_HOST = 'openapi.tuyaus.com'; 
 
 function tuyaFetch(path, method, headers, bodyData = '') {
   return new Promise((resolve, reject) => {
@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
   try {
     const t = Date.now().toString();
 
-    // 1. Dapatkan Token
+    // 1. Dapatkan Access Token
     const tokenPath = '/v1.0/token?grant_type=1';
     const tokenSign = buildSign(CLIENT_ID, CLIENT_SECRET, t, '', tokenPath, '', 'GET');
 
