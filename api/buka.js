@@ -6,8 +6,8 @@ const CLIENT_ID = '5apwu48xt55pexrxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
 
-// Senarai Host Endpoint Tuya bagi Singapore Data Center
-const HOSTS = ['openapi.tuyaus.com', 'openapi.tuyacn.com'];
+// Host Khas Singapore Data Center (Tuya API v2)
+const HOSTS = ['openapi.tuyasgp.com', 'openapi.tuyaus.com'];
 
 function tuyaRequest(host, path, method, headers, bodyData = null) {
   return new Promise((resolve, reject) => {
@@ -45,7 +45,6 @@ function calcSign(clientId, secret, t, accessToken = '', url = '', bodyStr = '',
 }
 
 module.exports = async (req, res) => {
-  // Set Header CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -54,9 +53,9 @@ module.exports = async (req, res) => {
 
   let activeHost = null;
   let accessToken = null;
-  let tokenError = null;
+  let lastResponse = null;
 
-  // 1. Dapatkan Token dengan mencuba Host yang aktif
+  // Cuba dapatkan token dari endpoint Singapore
   for (const host of HOSTS) {
     try {
       const t = Date.now().toString();
@@ -72,26 +71,24 @@ module.exports = async (req, res) => {
       };
 
       const tokenData = await tuyaRequest(host, tokenUrl, 'GET', tokenHeaders);
+      lastResponse = tokenData;
 
       if (tokenData && tokenData.success) {
         activeHost = host;
         accessToken = tokenData.result.access_token;
-        break; // Berjaya jumpa Host yang sah
-      } else {
-        tokenError = tokenData;
+        break;
       }
     } catch (err) {
-      tokenError = err;
+      lastResponse = err;
     }
   }
 
   if (!accessToken) {
-    return res.status(500).json({ status: 'Gagal', msg: 'Semua Host Tuya Menolak Akses Token', detail: tokenError });
+    return res.status(500).json({ status: 'Gagal', msg: 'Sila semak Service API di Tuya', detail: lastResponse });
   }
 
   try {
     const t = Date.now().toString();
-    // 2. Hantar Arahan Buka Pintu (Unlock)
     const cmdUrl = `/v1.0/devices/${DEVICE_ID}/commands`;
     const bodyObj = { commands: [{ code: 'remote_unlock', value: true }] };
     const bodyStr = JSON.stringify(bodyObj);
@@ -110,7 +107,7 @@ module.exports = async (req, res) => {
 
     const cmdData = await tuyaRequest(activeHost, cmdUrl, 'POST', cmdHeaders, bodyStr);
 
-    // 3. Autolock Backup (Kunci semula secara automatik selepas 5 Saat)
+    // Auto-lock semula selepas 5 saat
     setTimeout(async () => {
       try {
         const lockT = Date.now().toString();
@@ -130,13 +127,12 @@ module.exports = async (req, res) => {
         };
 
         await tuyaRequest(activeHost, cmdUrl, 'POST', lockHeaders, lockBodyStr);
-        console.log('[AUTOLOCK]: Pintu dikunci semula secara automatik.');
       } catch (e) {
-        console.error('[AUTOLOCK ERROR]:', e);
+        console.error(e);
       }
     }, 5000);
 
-    return res.status(200).json({ status: 'Berjaya', success: true, hostUsed: activeHost, tuya: cmdData });
+    return res.status(200).json({ status: 'Berjaya', success: true, tuya: cmdData });
 
   } catch (error) {
     return res.status(500).json({ status: 'Gagal', success: false, error: error.message || error });
