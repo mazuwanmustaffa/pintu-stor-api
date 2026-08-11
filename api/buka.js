@@ -6,8 +6,8 @@ const CLIENT_ID = '5apwu48xt55pexrxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
 
-// ENDPOINT SINGAPORE DATA CENTER
-const TUYA_HOST = 'openapi.tuyaus.com'; 
+// DOMAIN RASMI ASIA / SINGAPORE DATA CENTER
+const TUYA_HOST = 'openapi.tuyacn.com'; 
 
 function tuyaFetch(path, method, headers, bodyData = '') {
   return new Promise((resolve, reject) => {
@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
       'Content-Type': 'application/json'
     }, bodyStr);
 
-    // 3. Autolock (Kunci semula selepas 5 saat)
+    // 3. Autolock (Kunci semula secara automatik selepas 5 saat)
     setTimeout(async () => {
       try {
         const lockT = Date.now().toString();
