@@ -2,15 +2,16 @@
 const crypto = require('crypto');
 const https = require('https');
 
-// 🔑 MAKLUAMAT TUYA API ANDA
+// 🔑 MAKLUAMAT TUYA API
 const CLIENT_ID = '5apwu48xt55pexrxh5sf';
 const CLIENT_SECRET = 'eeb83dbad3624ec19b74a72b989d6f8f';
 const DEVICE_ID = 'a349e338f1fd700cc8u0xo';
 
-// Host Khas Singapore Data Center (Tuya OpenAPI)
-const TUYA_HOST = 'openapi.tuyasgp.com';
+// DOMAIN RASMI TUYA (Singapore Data Center menggunakan openapi.tuyaus.com)
+const TUYA_HOST = 'openapi.tuyaus.com';
 
-function tuyaRequest(path, method, headers, bodyData = null) {
+// Function HTTPS Native
+function tuyaFetch(path, method, headers, bodyData = '') {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: TUYA_HOST,
@@ -38,9 +39,10 @@ function tuyaRequest(path, method, headers, bodyData = null) {
   });
 }
 
-function calcSign(clientId, secret, t, accessToken = '', url = '', bodyStr = '', method = 'GET') {
+// Pengiraan Signature Rasmi Tuya v2 (HMAC-SHA256)
+function buildSign(clientId, secret, t, accessToken = '', path = '', bodyStr = '', method = 'GET') {
   const contentHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
-  const stringToSign = [method, contentHash, '', url].join('\n');
+  const stringToSign = [method, contentHash, '', path].join('\n');
   const signStr = clientId + accessToken + t + stringToSign;
   return crypto.createHmac('sha256', secret).update(signStr).digest('hex').toUpperCase();
 }
@@ -56,31 +58,34 @@ module.exports = async (req, res) => {
   try {
     const t = Date.now().toString();
 
-    // 1. Dapatkan Token dari Singapore Server
-    const tokenUrl = '/v1.0/token?grant_type=1';
-    const tokenSign = calcSign(CLIENT_ID, CLIENT_SECRET, t, '', tokenUrl, '', 'GET');
+    // 1. Dapatkan Access Token dari Tuya
+    const tokenPath = '/v1.0/token?grant_type=1';
+    const tokenSign = buildSign(CLIENT_ID, CLIENT_SECRET, t, '', tokenPath, '', 'GET');
 
     const tokenHeaders = {
       'client_id': CLIENT_ID,
       'sign': tokenSign,
       't': t,
-      'sign_method': 'HMAC-SHA256',
-      'User-Agent': 'Mozilla/5.0'
+      'sign_method': 'HMAC-SHA256'
     };
 
-    const tokenData = await tuyaRequest(tokenUrl, 'GET', tokenHeaders);
+    const tokenRes = await tuyaFetch(tokenPath, 'GET', tokenHeaders);
 
-    if (!tokenData || !tokenData.success) {
-      return res.status(500).json({ status: 'Gagal', msg: 'Ralat Dapatkan Token dari Singapore Data Center', detail: tokenData });
+    if (!tokenRes || !tokenRes.success) {
+      return res.status(500).json({
+        status: 'Gagal',
+        msg: 'Gagal Dapatkan Token',
+        detail: tokenRes
+      });
     }
 
-    const accessToken = tokenData.result.access_token;
+    const accessToken = tokenRes.result.access_token;
 
-    // 2. Hantar Arahan Buka Pintu (Unlock)
-    const cmdUrl = `/v1.0/devices/${DEVICE_ID}/commands`;
+    // 2. Hantar Arahan Unlock (Buka Pintu)
+    const cmdPath = `/v1.0/devices/${DEVICE_ID}/commands`;
     const bodyObj = { commands: [{ code: 'remote_unlock', value: true }] };
     const bodyStr = JSON.stringify(bodyObj);
-    const cmdSign = calcSign(CLIENT_ID, CLIENT_SECRET, t, accessToken, cmdUrl, bodyStr, 'POST');
+    const cmdSign = buildSign(CLIENT_ID, CLIENT_SECRET, t, accessToken, cmdPath, bodyStr, 'POST');
 
     const cmdHeaders = {
       'client_id': CLIENT_ID,
@@ -88,12 +93,10 @@ module.exports = async (req, res) => {
       'sign': cmdSign,
       't': t,
       'sign_method': 'HMAC-SHA256',
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(bodyStr),
-      'User-Agent': 'Mozilla/5.0'
+      'Content-Type': 'application/json'
     };
 
-    const cmdData = await tuyaRequest(cmdUrl, 'POST', cmdHeaders, bodyStr);
+    const cmdRes = await tuyaFetch(cmdPath, 'POST', cmdHeaders, bodyStr);
 
     // 3. Autolock (Kunci semula secara automatik selepas 5 Saat)
     setTimeout(async () => {
@@ -101,7 +104,7 @@ module.exports = async (req, res) => {
         const lockT = Date.now().toString();
         const lockBodyObj = { commands: [{ code: 'remote_unlock', value: false }] };
         const lockBodyStr = JSON.stringify(lockBodyObj);
-        const lockSign = calcSign(CLIENT_ID, CLIENT_SECRET, lockT, accessToken, cmdUrl, lockBodyStr, 'POST');
+        const lockSign = buildSign(CLIENT_ID, CLIENT_SECRET, lockT, accessToken, cmdPath, lockBodyStr, 'POST');
 
         const lockHeaders = {
           'client_id': CLIENT_ID,
@@ -109,20 +112,18 @@ module.exports = async (req, res) => {
           'sign': lockSign,
           't': lockT,
           'sign_method': 'HMAC-SHA256',
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(lockBodyStr),
-          'User-Agent': 'Mozilla/5.0'
+          'Content-Type': 'application/json'
         };
 
-        await tuyaRequest(cmdUrl, 'POST', lockHeaders, lockBodyStr);
+        await tuyaFetch(cmdPath, 'POST', lockHeaders, lockBodyStr);
       } catch (e) {
-        console.error(e);
+        console.error('Autolock error:', e);
       }
     }, 5000);
 
-    return res.status(200).json({ status: 'Berjaya', success: true, tuya: cmdData });
+    return res.status(200).json({ status: 'Berjaya', success: true, tuya: cmdRes });
 
-  } catch (error) {
-    return res.status(500).json({ status: 'Gagal', success: false, error: error.message || error });
+  } catch (err) {
+    return res.status(500).json({ status: 'Gagal', error: err.message || err });
   }
 };
