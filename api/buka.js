@@ -1,4 +1,3 @@
-// api/buka.js
 module.exports = async (req, res) => {
   // Tetapan CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,7 +11,7 @@ module.exports = async (req, res) => {
     const response = await fetch('https://little-parts-itch.loca.lt/api/webhook/buka_pintu_stor', {
       method: 'POST',
       headers: {
-        'bypass-tunnel-reminder': 'true' // Elak daripada disekat skrin peringatan localtunnel
+        'bypass-tunnel-reminder': 'true'
       }
     });
 
