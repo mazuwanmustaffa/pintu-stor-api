@@ -1,17 +1,15 @@
 module.exports = async (req, res) => {
+  // Tetapan CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, bypass-tunnel-reminder');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // URL Localtunnel baharu yang 127.0.0.1
-    const response = await fetch('https://purple-chefs-drive.loca.lt/api/webhook/buka_pintu_stor', {
-      method: 'POST',
-      headers: {
-        'bypass-tunnel-reminder': 'true'
-      }
+    // Memanggil Webhook Home Assistant melalui Cloudflare Tunnel
+    const response = await fetch('https://provinces-november-amendments-propose.trycloudflare.com/api/webhook/buka_pintu_stor', {
+      method: 'POST'
     });
 
     return res.status(200).json({ 
