@@ -1,5 +1,4 @@
 module.exports = async (req, res) => {
-  // Tetapan CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -7,9 +6,11 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // Memanggil Webhook Home Assistant melalui Cloudflare Tunnel
-    const response = await fetch('https://provinces-november-amendments-propose.trycloudflare.com/api/webhook/buka_pintu_stor', {
-      method: 'POST'
+    const response = await fetch('https://outdoor-first-depot-exclusive.trycloudflare.com/api/webhook/buka_pintu_stor', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
 
     return res.status(200).json({ 
