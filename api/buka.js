@@ -1,5 +1,4 @@
 module.exports = async (req, res) => {
-  // Tetapan CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, bypass-tunnel-reminder');
@@ -7,8 +6,8 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // Memanggil Webhook Home Assistant melalui Localtunnel URL
-    const response = await fetch('https://little-parts-itch.loca.lt/api/webhook/buka_pintu_stor', {
+    // URL Localtunnel baharu yang 127.0.0.1
+    const response = await fetch('https://purple-chefs-drive.loca.lt/api/webhook/buka_pintu_stor', {
       method: 'POST',
       headers: {
         'bypass-tunnel-reminder': 'true'
