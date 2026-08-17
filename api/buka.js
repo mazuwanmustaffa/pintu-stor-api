@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const response = await fetch('https://outdoor-first-depot-exclusive.trycloudflare.com/api/webhook/buka_pintu_stor', {
+    const response = await fetch('https://ages-engineers-steve-decreased.trycloudflare.com/api/webhook/buka_pintu_stor', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
